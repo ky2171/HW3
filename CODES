@@ -1,0 +1,169 @@
+#problem set 3
+getwd()
+
+wine_quality <- read.csv("wine.csv")
+View(wine_quality)
+
+
+#2(a)
+# Data pre-processing
+#set a high_quality column as Y
+wine_quality$high_quality = 0
+wine_quality$high_quality[wine_quality$quality > 5] = 1
+wine_high_quality = subset(wine_quality, select = c("fixed.acidity","volatile.acidity","citric.acid","residual.sugar",
+                                            "chlorides","free.sulfur.dioxide","total.sulfur.dioxide",
+                                            "density","pH","sulphates","alcohol","high_quality"))
+
+#1)
+# Split the data into training, validation and testing sets, using sample and setdiff functions
+
+set.seed(235)
+training.rows <- sample (1:nrow(wine_high_quality),nrow(wine_high_quality)*0.6)
+vt.rows = setdiff (1:nrow(wine_high_quality) , training.rows)
+validation.rows <- sample (vt.rows , nrow(wine_high_quality)*0.2)
+testing.rows <- setdiff(vt.rows , validation.rows)
+
+wine_quality_training <- wine_high_quality[training.rows,]
+wine_quality_validation <- wine_high_quality[validation.rows,]
+wine_quality_testing <- wine_high_quality[testing.rows,]
+
+str(wine_quality_training)
+str(wine_quality_validation)
+str(wine_quality_testing)
+
+# Model1: Logistic Model
+#using glm function to train the model on the training set, than using predict function to make prediction on validation set
+#glm:generalize linear model; family=binomial:use logistic regression; "response" option tells R to output probabilities 
+model1 <- glm(high_quality ~ fixed.acidity+volatile.acidity+citric.acid+residual.sugar+
+                chlorides+free.sulfur.dioxide+total.sulfur.dioxide+
+                density+pH+sulphates+alcohol, 
+              data=wine_quality_training,family=binomial)
+
+Pred_validation_1 <- predict(model1, type="response", newdata = wine_quality_validation)
+summary(Pred_validation_1)
+
+table(wine_quality_validation$high_quality, Pred_validation_1 > 0.5)
+# after geting the confusion matrix, we can calculate the overall accuracy by using the formula TP+TN /(TP+TN+FP+FN)
+accuracy_model1 <- (151+570)/(151+160+98+570)
+print(paste("The overall accuracy of Model1 is",accuracy_model1))
+
+# Model 2: knn model
+#scaling variables by using theirs values minus its mean and then divided its sd to allow values become comparable when the knn model introduced 
+f_a <- (wine_quality_training$fixed.acidity-mean(wine_quality_training$fixed.acidity)/sd(wine_quality_training$fixed.acidity))
+v_a <- (wine_quality_training$volatile.acid-mean(wine_quality_training$volatile.acid)/sd(wine_quality_training$volatile.acid))
+c_a <- (wine_quality_training$citric.acid-mean(wine_quality_training$citric.acid)/sd(wine_quality_training$citric.acid))
+r_s <- (wine_quality_training$residual.sugar-mean(wine_quality_training$residual.sugar)-sd(wine_quality_training$residual.sugar))
+chlorides <- (wine_quality_training$chlorides-mean(wine_quality_training$chlorides)/sd(wine_quality_training$chlorides))
+f_s_d <- (wine_quality_training$free.sulfur.dioxide-mean(wine_quality_training$free.sulfur.dioxide)/sd(wine_quality_training$free.sulfur.dioxide))
+t_s_d <- (wine_quality_training$total.sulfur.dioxide-mean(wine_quality_training$total.sulfur.dioxide)/sd(wine_quality_training$total.sulfur.dioxide))
+density <- (wine_quality_training$density-mean(wine_quality_training$density)/sd(wine_quality_training$density))
+pH <- (wine_quality_training$pH-mean(wine_quality_training$pH)/sd(wine_quality_training$pH))
+sulphates <- (wine_quality_training$sulphates-mean(wine_quality_training$sulphates)/sd(wine_quality_training$sulphates))
+alcohol <- (wine_quality_training$alcohol-mean(wine_quality_training$alcohol)/sd(wine_quality_training$alcohol))
+h_q <- as.factor(wine_quality_training$high_quality)
+
+knn_train <- data.frame(f_a,v_a,c_a,r_s,chlorides,f_s_d,t_s_d,density,pH,sulphates,alcohol)
+knn_training <- data.frame(f_a,v_a,c_a,r_s,chlorides,f_s_d,t_s_d,density,pH,sulphates,alcohol,h_q)
+
+f_a <- (wine_quality_validation$fixed.acidity-mean(wine_quality_validation$fixed.acidity)/sd(wine_quality_validation$fixed.acidity))
+v_a <- (wine_quality_validation$volatile.acid-mean(wine_quality_validation$volatile.acid)/sd(wine_quality_validation$volatile.acid))
+c_a <- (wine_quality_validation$citric.acid-mean(wine_quality_validation$citric.acid)/sd(wine_quality_validation$citric.acid))
+r_s <- (wine_quality_validation$residual.sugar-mean(wine_quality_validation$residual.sugar)-sd(wine_quality_validation$residual.sugar))
+chlorides <- (wine_quality_validation$chlorides-mean(wine_quality_validation$chlorides)/sd(wine_quality_validation$chlorides))
+f_s_d <- (wine_quality_validation$free.sulfur.dioxide-mean(wine_quality_validation$free.sulfur.dioxide)/sd(wine_quality_validation$free.sulfur.dioxide))
+t_s_d <- (wine_quality_validation$total.sulfur.dioxide-mean(wine_quality_validation$total.sulfur.dioxide)/sd(wine_quality_validation$total.sulfur.dioxide))
+density <- (wine_quality_validation$density-mean(wine_quality_validation$density)/sd(wine_quality_validation$density))
+pH <- (wine_quality_validation$pH-mean(wine_quality_validation$pH)/sd(wine_quality_validation$pH))
+sulphates <- (wine_quality_validation$sulphates-mean(wine_quality_validation$sulphates)/sd(wine_quality_validation$sulphates))
+alcohol <- (wine_quality_validation$alcohol-mean(wine_quality_validation$alcohol)/sd(wine_quality_validation$alcohol))
+h_q <- as.factor(wine_quality_validation$high_quality)
+
+knn_valid <- data.frame(f_a,v_a,c_a,r_s,chlorides,f_s_d,t_s_d,density,pH,sulphates,alcohol)
+knn_validation <- data.frame(f_a,v_a,c_a,r_s,chlorides,f_s_d,t_s_d,density,pH,sulphates,alcohol,h_q)
+
+quality_training <- wine_quality_training$high_quality
+quality_validation <- wine_quality_validation$high_quality
+#constrcut a function to find the accuracy that would allow the means of actual values and predicted values equal with each other 
+accuracy_knn <- function(actual,predicted) {
+  mean(actual == predicted)
+}
+
+#load the class package
+library(class)
+
+#make prediction on the validation set
+predicted_quality <- knn(train = knn_train, test = knn_valid, cl = quality_training, k=5)
+high_quality_validation = knn_validation$h_q
+
+table(high_quality_validation,predicted_quality)
+accuracy_model2 <- accuracy_knn(actual = high_quality_validation, predicted = predicted_quality)
+print(paste("The overall accuracy of Model2 is",accuracy_model2))
+
+#compare the overall accuracy of model1 and model2, and then choose the model1
+
+
+
+# 2) k-fold cross validation
+set.seed(8)
+
+#re-split data in training and testing set for k-fold cross validation
+wine_quality_training_rows <- sample(1:nrow(wine_high_quality),nrow(wine_high_quality)*0.7)
+wine_quality_training_1 <- wine_quality[wine_quality_training_rows,]
+wine_quality_testing_1 <- wine_quality[-wine_quality_training_rows,]
+
+
+#standardize the features/scaling 
+f_c <- (wine_quality_training_1$fixed.acidity-mean(wine_quality_training_1$fixed.acidity)/sd(wine_quality_training_1$fixed.acidity))
+v_a <- (wine_quality_training_1$volatile.acid-mean(wine_quality_training_1$volatile.acid)/sd(wine_quality_training_1$volatile.acid))
+c_a <- (wine_quality_training_1$citric.acid-mean(wine_quality_training_1$citric.acid)/sd(wine_quality_training_1$citric.acid))
+r_s <- (wine_quality_training_1$residual.sugar-mean(wine_quality_training_1$residual.sugar)-sd(wine_quality_training_1$residual.sugar))
+chlorides <- (wine_quality_training_1$chlorides-mean(wine_quality_training_1$chlorides)/sd(wine_quality_training_1$chlorides))
+f_s_d <- (wine_quality_training_1$free.sulfur.dioxide-mean(wine_quality_training_1$free.sulfur.dioxide)/sd(wine_quality_training_1$free.sulfur.dioxide))
+t_s_d <- (wine_quality_training_1$total.sulfur.dioxide-mean(wine_quality_training_1$total.sulfur.dioxide)/sd(wine_quality_training_1$total.sulfur.dioxide))
+density <- (wine_quality_training_1$density-mean(wine_quality_training_1$density)/sd(wine_quality_training_1$density))
+pH <- (wine_quality_training_1$pH-mean(wine_quality_training_1$pH)/sd(wine_quality_training_1$pH))
+sulphates <- (wine_quality_training_1$sulphates-mean(wine_quality_training_1$sulphates)/sd(wine_quality_training_1$sulphates))
+alcohol <- (wine_quality_training_1$alcohol-mean(wine_quality_training_1$alcohol)/sd(wine_quality_training_1$alcohol))
+h_q <- as.factor(wine_quality_training_1$high_quality)
+
+knn_train <- data.frame(f_c,v_a,c_a,r_s,chlorides,f_s_d,t_s_d,density,pH,sulphates,alcohol)
+knn_training_1 <- data.frame(f_c,v_a,c_a,r_s,chlorides,f_s_d,t_s_d,density,pH,sulphates,alcohol,h_q)
+
+f_c <- (wine_quality_testing_1$fixed.acidity-mean(wine_quality_testing_1$fixed.acidity)/sd(wine_quality_testing_1$fixed.acidity))
+v_a <- (wine_quality_testing_1$volatile.acid-mean(wine_quality_testing_1$volatile.acid)/sd(wine_quality_testing_1$volatile.acid))
+c_a <- (wine_quality_testing_1$citric.acid-mean(wine_quality_testing_1$citric.acid)/sd(wine_quality_testing_1$citric.acid))
+r_s <- (wine_quality_testing_1$residual.sugar-mean(wine_quality_testing_1$residual.sugar)-sd(wine_quality_testing_1$residual.sugar))
+chlorides <- (wine_quality_testing_1$chlorides-mean(wine_quality_testing_1$chlorides)/sd(wine_quality_testing_1$chlorides))
+f_s_d <- (wine_quality_testing_1$free.sulfur.dioxide-mean(wine_quality_testing_1$free.sulfur.dioxide)/sd(wine_quality_testing_1$free.sulfur.dioxide))
+t_s_d <- (wine_quality_testing_1$total.sulfur.dioxide-mean(wine_quality_testing_1$total.sulfur.dioxide)/sd(wine_quality_testing_1$total.sulfur.dioxide))
+density <- (wine_quality_testing_1$density-mean(wine_quality_testing_1$density)/sd(wine_quality_testing_1$density))
+pH <- (wine_quality_testing_1$pH-mean(wine_quality_testing_1$pH)/sd(wine_quality_testing_1$pH))
+sulphates <- (wine_quality_testing_1$sulphates-mean(wine_quality_testing_1$sulphates)/sd(wine_quality_testing_1$sulphates))
+alcohol <- (wine_quality_testing_1$alcohol-mean(wine_quality_testing_1$alcohol)/sd(wine_quality_testing_1$alcohol))
+h_q <- as.factor(wine_quality_testing_1$high_quality)
+
+knn_test <- data.frame(f_c,v_a,c_a,r_s,chlorides,f_s_d,t_s_d,density,pH,sulphates,alcohol)
+knn_testing_1<- data.frame(f_c,v_a,c_a,r_s,chlorides,f_s_d,t_s_d,density,pH,sulphates,alcohol,h_q)
+
+#load necessary packages for cross validation and knn
+library(caret)
+library(e1071)
+
+#using 6-fold cross validation to fine-tune the number of neighbor k in the knn model
+trControl <- trainControl(method = "cv" , number=6)
+fit_cv <- train(h_q ~ . , method = "knn", tuneGrid = expand.grid( k = 1:10 ), metric = "Accuracy", trControl = trControl, data = knn_training_1)
+fit_cv
+#from the cross validation results, got the best knn model when k=1, so fit 1-nn model on the training set
+#make prediction on the testing set based on 1-nn model
+predicted_wine_quality <- knn(train = knn_train, test = knn_test, cl = knn_training_1$h_q, k=1)
+quality_testing <- knn_testing_1$h_q
+
+#define the function to calculate the knn accuracy
+accuracy_knn = function (actual, predicted){
+  mean(actual == predicted)
+}
+#create the confusion matrix
+table(quality_testing, predicted_wine_quality)
+
+accuracy_1nn <- accuracy_knn(actual = quality_testing, predicted = predicted_wine_quality)
+print(paste('The testing accuracy of 1-NN model is', accuracy_1nn))
